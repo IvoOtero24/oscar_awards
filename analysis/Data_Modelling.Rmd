@@ -1,0 +1,342 @@
+---
+title: "The Oscars Award"
+subtitle: "Data Modelling: Klassifikation"
+author: "Mathias Petak, Ivo Otero"
+date: "4 1 2022"
+output: 
+  pdf_document:
+      toc: yes
+      number_sections: true
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries {.unnumbered}
+
+```{r, echo=FALSE, message=FALSE, error=FALSE}
+library(dplyr)
+library(tidyverse)
+library(class)
+library(caret)
+library(e1071)
+library(randomForest)
+library(sjmisc)
+```
+
+\newpage
+ 
+# Einleitung und Aufgabenstellung
+
+In diesem Teil des Projektes werden verschiedenen Klassifizierungsmethoden beim miteinander vergleicht Anhand der Daten aus unserem *Oscar-Dataset*, die für den *ExplorativeAnalysis* Teil bereits verwendet wurde (mit einige anpassungen, die später erähnt werden).
+
+Wir benutzen die **Klassifikation**, um eine kategoriale Variable vorhersagen zu können.
+In diesem Projekten fokussieren wir uns auf 3 unterschiedliche Methoden, die oft in Data Science Anwendungen zu diesem Zweck verwendet werden: *Random Forest*, *Naive Bayes Classifiers* und *Neural Networks*.
+
+Die 3 erwähnte Methoden werden miteinander verglichen, und die Methode mit dem besten Ergebnis beim "Performance Assesment" wird anschließend für die Vorhersage angewendet.
+
+## Was wird vorhergesagt?
+
+Anhand der ausgewählten Methode wird vorhergesagt, ob ein Film nach mehrere ihre Features das Oscar-Preis für "Best Picture" (beste Film) gewonnen hat oder nicht.
+**BONUS:** Anschließend wird auch anhand der Ratings und Golden Globe 2022 ergebnisse versucht, der gewinner des 2022 Best Picture Award zu vorhersagen (Ergebnis der Auszeichnung erfolgt aber erst in März ).
+
+# Daten einlesen und aufbereiten
+
+Die erste Aufagbe ist die Daten einlesen und für die weitere Verarbeitung aufzubereiten.
+In diesem Beispiel werden als erstes die Attributen `Winner` (ob ein Film gewonnen hat oder nicht) und `Category` als `factor` umgestellt.
+
+```{r}
+oscars_data <- read.csv(file = '../data/the_oscar_award.csv', header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
+oscars_tbl <- as_tibble(oscars_data)
+oscars_tbl$winner <- as.factor(oscars_tbl$winner)
+oscars_tbl$category <- as.factor(oscars_tbl$category)
+head(oscars_tbl)
+```
+
+## Cleanup
+
+Da bei dieser Arbeit der Fokus bei der "Best Picture" Kategorie liegt, werden wir für die Vorhersagemodellen alle anderen Kategorien aus unserem Datensatz rausnehmen.
+Da aber das Best Picture Award in der Vergangenheit anders genannt wurde, haben wir diese Kategorien recherchiert und in einer einzelne Kategorie `BEST PICTURE` zusammengesetz, um später besser damit arbeiten zu können.
+
+```{r}
+for (row in 1:nrow(oscars_tbl)) {
+  if (str_contains(as.character(oscars_tbl[row, "category"]), "OUTSTANDING")) {
+    oscars_tbl[row, "category"] = "BEST PICTURE"
+  } else if (str_contains(as.character(oscars_tbl[row, "category"]), "BEST MOTION")) {
+    oscars_tbl[row, "category"] = "BEST PICTURE"
+  } else if (str_contains(as.character(oscars_tbl[row, "category"]), "UNIQUE AND ARTISTIC")) {
+    oscars_tbl[row, "category"] = "BEST PICTURE"
+  } 
+}
+```
+
+```{r}
+bestMovies = subset(oscars_tbl, category == "BEST PICTURE")
+```
+
+## Data Merging
+
+### Externe Daten einlesen
+
+Um die gewinner vorhersagen zu können müssen wir unseren Dataset mit den Oscar-Nominierte Filme erweitern und neue Variablen hinzufügen, die möglicherweise ein Einfluss auf die Zielvariable "winner" haben.
+Wir haben uns in diesem Fall für den "oscardata_bestpicture" (*Kaggle: Data on Oscar nominated films between 1960 and 2021*) Datensatz geeignit, der Daten aus IMDB (Film und Rating-Website) beinhaltet.
+
+```{r}
+movie_data_imdb <- read.csv(file = '../data/oscardata_bestpicture.csv', header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
+movie_data_imdb <- as_tibble(movie_data_imdb)
+names(movie_data_imdb)[2] = "film"
+head(movie_data_imdb)
+```
+
+### Datensätze zusammenfügen
+
+Für das zusammenführen der beiden tabellen wurde die `merge()` Methode genommen, und nur die relevantesten Spalten wurden betrachtet (neu dazugekommen sind "Rating_IMDB", "Win_GolenGlobe_bestdrama", u. A).
+
+```{r}
+merged = merge(bestMovies, movie_data_imdb, by = "film") |> 
+          subset(select = c(film, ceremony, name, winner, Year, Rating_IMDB, Oscarstat_totalnoms, Nom_Oscar_bestdirector, Genre_action, Genre_biography, Genre_crime, Genre_comedy, Genre_drama, Genre_horror, Genre_fantasy, Genre_sci.fi, Genre_mystery, Genre_music, Genre_romance, Genre_history, Genre_war, Genre_thriller, Genre_adventure, Genre_filmnoir, Genre_family, Genre_sport, Genre_western, Rating_rtcritic, Nom_GoldenGlobe_bestdrama, Win_GoldenGlobe_bestdrama))
+```
+
+Weiters haben wir aus Vereinfachungsgründen die "genre" Spalten (die Auskuft geben, ob ein Film einer bestimmten Genre gehört) zussamengeführ, um nur eine Spalte mit jeweiligen Genre des Filmes zu haben.
+
+```{r}
+merged$genre = as.character(NA)
+
+for (row in 1:nrow(merged)) {
+  
+  if (merged[[row, 'Genre_action']] == 1) {
+    merged[[row, 'genre']] = "Action"
+    
+  } else if (merged[[row, 'Genre_biography']] == 1) {
+    merged[[row, 'genre']] = "Biography"
+  } else if (merged[[row, 'Genre_crime']] == 1) {
+    merged[[row, 'genre']] = "Crime"
+  } else if (merged[[row, 'Genre_comedy']] == 1) {
+    merged[[row, 'genre']] = "Comedy"
+  } else if (merged[[row, 'Genre_drama']] == 1) {
+    merged[[row, 'genre']] = "Drama"
+  } else if (merged[[row, 'Genre_horror']] == 1) {
+    merged[[row, 'genre']] = "Horror"
+  } else if (merged[[row, 'Genre_fantasy']] == 1) {
+    merged[[row, 'genre']] = "Fantasy"
+  } else if (merged[[row, 'Genre_sci.fi']] == 1) {
+    merged[[row, 'genre']] = "SciFi"
+  } else if (merged[[row, 'Genre_mystery']] == 1) {
+    merged[[row, 'genre']] = "Mystery"
+  } else if (merged[[row, 'Genre_music']] == 1) {
+    merged[[row, 'genre']] = "Music"
+  } else if (merged[[row, 'Genre_romance']] == 1) {
+    merged[[row, 'genre']] = "Romance"
+  } else if (merged[[row, 'Genre_history']] == 1) {
+    merged[[row, 'genre']] = "History"
+  } else if (merged[[row, 'Genre_war']] == 1) {
+    merged[[row, 'genre']] = "War"
+  } else if (merged[[row, 'Genre_thriller']] == 1) {
+    merged[[row, 'genre']] = "Thriller"
+  } else if (merged[[row, 'Genre_adventure']] == 1) {
+    merged[[row, 'genre']] = "Adventure"
+  } else if (merged[[row, 'Genre_filmnoir']] == 1) {
+    merged[[row, 'genre']] = "FilmNoir"
+  } else if (merged[[row, 'Genre_family']] == 1) {
+    merged[[row, 'genre']] = "Family"
+  } else if (merged[[row, 'Genre_sport']] == 1) {
+    merged[[row, 'genre']] = "Sport"
+  } else if (merged[[row, 'Genre_western']] == 1) {
+    merged[[row, 'genre']] = "Western"
+  }
+}
+
+merged = merged |> select(-contains("Genre_"))
+merged$genre = as.factor(merged$genre)
+merged$Nom_Oscar_bestdirector = as.factor(merged$Nom_Oscar_bestdirector)
+
+head(merged)
+sum(is.na(merged))
+
+## Cries and Whispers
+merged[74, "genre"] = "Drama"
+
+## M*A*S*H
+merged[149, "genre"] = "Comedy"
+
+## Star Wars
+merged[212, "genre"] = "SciFi"
+
+## The Godfather Part 2
+merged[242, "genre"] = "Crime"
+
+sum(is.na(merged))
+
+```
+
+\newpage
+
+# Modellierung
+
+In diesem Absatz werden jeweils die Training und Test-Daten erstellt und anschließend benutzt, um die verschiedene Modelle zu trainieren.
+
+## Train und Test-Data erstellen
+
+```{r}
+set.seed(23489)
+ind = createResample(merged$winner, times = 1)
+
+train = merged[ind$Resample1,]
+test = merged[-ind$Resample1,]
+
+nrow(train)
+nrow(test)
+```
+
+## Data Training und Tuning
+
+Für die Vorhersage haben wir uns entschieden, nicht alle Attributen zu nehmen, da es zu ein schlechteren Ergebniss fürht (Kappa bei ca. 0).
+Die beste Attributenkombination hat sich ergeben bei der Auswahl von `Oscarstat_totalnoms` (Anzahl an Oscar-nominierungen für das jeweilige Film) + `Rating_rtcritic` (Kritikers Rating) + `Win_GoldenGlobe_bestdrama` (boolean, ob der Film die GoldenGlobes gewonnen hat)
+
+### RandomForest
+
+```{r}
+model_rf = train(winner ~ Oscarstat_totalnoms + Rating_rtcritic + Win_GoldenGlobe_bestdrama,
+                 data = train,
+                 method = "rf",
+                 preProcess = c("scale", "center"),
+                 tuneGrid = data.frame(mtry = 1))
+model_rf
+```
+
+### NaiveBayes
+
+```{r}
+model_nb = train(winner ~ Win_GoldenGlobe_bestdrama + Oscarstat_totalnoms + Rating_rtcritic,
+                 data = train,
+                 method = "nb",
+                 preProcess = c("scale", "center")
+                 )
+model_nb
+```
+
+### Neural Networks
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+model_nn = train(winner ~  Win_GoldenGlobe_bestdrama + Oscarstat_totalnoms + Rating_rtcritic,
+                 data = train,
+                 method = "nnet",
+                 preProcess = c("scale", "center"),
+                 tuneGrid = data.frame(size = 1, decay = seq(from = 0.01, to = 0.11, by = 0.01)))
+```
+
+
+```{r}
+model_nn
+```
+
+# Performance Assesment und Vergleich
+
+Nachdem wir alle Modelle trainiert haben, werden diese miteinander vergliechen, um das beste Modell für die Vorersage der Daten herauszufinden.
+
+## Vergleich mit PostResamle
+
+```{r}
+res = resamples(list(nb = model_nb, rf = model_rf, nn = model_nn))
+summary(res)
+```
+
+## Graphische Darstellung
+
+```{r}
+bwplot(res)
+```
+
+Auf dem ersten Blick kann man sehr gut erkennen, dass der `RandomForest` Modell besser ausschneidet als die zwei weitere Alternativen.
+Alle Modelle präsentieren eine ähnliche `Accuracy`, aber es gibt ein großes Unterschied beim Vergleich der `Kappa` Kennzahl für jedes Modell.
+
+Da diese Kennzahlen aber nicht die volle Geschichte erklären, werden im Folgenden Absatz die `Confusion Matrices` der einzelnen Modellen miteinander verglichen.
+
+## ConfusionMatrix für jedes Modell
+
+### Naive-Bayes
+
+```{r}
+tab = trunc(confusionMatrix(model_nb)$table)
+confusionMatrix(tab, mode = "prec_recall")
+```
+
+### RandomForest
+
+```{r}
+tab = trunc(confusionMatrix(model_rf)$table)
+confusionMatrix(tab, mode = "prec_recall")
+
+```
+
+### Neural Networks
+
+```{r}
+tab = trunc(confusionMatrix(model_nn)$table)
+confusionMatrix(tab, mode = "prec_recall")
+
+```
+
+### Interpretation und Entscheidung
+
+|           | Naive-Bayes | RandomForest | NeuralNetwork |
+|-----------|-------------|--------------|---------------|
+| Accuracy  | 0.7857      | 0.8454       | 0.7959        |
+| Recall    | 0.9231      | 0.8539       | 0.9870        |
+| Precision | 0.8276      | 0.9744       | 0.8000        |
+| F1        | 0.8727      | 0.9102       | 0.8837        |
+
+: Vergleich der "Confusion Matrices"
+
+Aus der obigen Tabelle geht hervor, dass das *Naive-Bayes* und das *NeuralNetwork* Modell ähnliche, gute aber nicht optimale Ergebnisse für die 4 beschriebenen Metriken erzielen.
+Das einzige Modell, das hiervon abweicht, ist das *RandomForest* Modell, der in allen Kategorien eine sehr gute Leistung aufweist.
+
+Das *RandomForest* Modell hat einen Vorsprung vor den anderen beiden Modellen, da es in allen 4 Metriken um einen kleinen Prozentsatz besser ist als seine Konkurrenten.
+Aus diesem Grund wäre es auch das Modell der Wahl für die Vorhersage des Attributs "winner" unserem Beispiel einer Oscar-Verleihung.
+
+# Vorhersagen mit RandomForest
+
+In diesem Abschnitt werden die Vorhersagen anhand den Test-Daten durchgeführt, und ihr Ergebniss wird anschließend ausgegeben.
+
+## Vorhersage der Test-Daten
+
+```{r}
+pred_rf = predict(model_rf, test)
+postResample(pred_rf, test$winner)
+```
+
+Wir man erkennen kann, das Modell hat die Oscar-Gewinner mit einer 85,24% Genauigkeit vorhergesagt.
+Laut dem Kappa-Wert erkennen wir auch, das diese Vorhersage auch ein Mehrwert gegen einfaches Raten präsentiert.
+
+## Vorhersage der 2022 Oscars
+
+Für die Vorhersage der 2022 Oscars wird in diesem Fall die Nominierungen der "Golden Globes Award" genommen, da die ofizielle Oscar-Nominierungen für "Best Picture" noch nicht bekannt sind. 
+
+```{r}
+film = c("The Power of The Dog", "Belfast", "CODA", "Dune", "King Richard")
+ceremony = c(93, 93, 93, 93, 93)
+name = c("Jane Campion, Producer", "Kenneth Branagh, Producer", "Sian Heder, Producer", "Denis Villeneuve, Producer", "Reinaldo Green, Producer")
+#winner = c()
+year = c(2021, 2021, 2021, 2021, 2021)
+Rating_IMDB = c(7.0, 7.4, 8.1, 8.1, 7.6) 
+Oscarstat_totalnoms = c(7, 7, 2, 3, 4)
+Nom_Oscar_bestdirector = c(NA, NA, NA, NA, NA)
+Rating_rtcritic = c(95, 87, 96, 83, 90)
+Nom_GoldenGlobe_bestdrama = c(1, 1, 1, 1, 1) 
+Win_GoldenGlobe_bestdrama = c(1, 0, 0, 0, 0)
+genre = c("Drama", "Drama", "Drama", "Drama", "Drama")
+  
+goldenglobes = data.frame(film, ceremony, name, year, Rating_IMDB, Oscarstat_totalnoms, Nom_Oscar_bestdirector, Rating_rtcritic, Nom_GoldenGlobe_bestdrama, Win_GoldenGlobe_bestdrama)
+```
+
+
+```{r}
+pred_2022 = predict(model_rf, goldenglobes, type = "prob")
+pred_2022
+```
+
+Aus den Ergebnissen geht hervor, dass keine der Filme, die für die Golden Gobes nominiert wurden, wahrscheinlich das Oscar für *Best Picture* gewinnen werden. Nichstdestotrotz, das Film mit den höheren Chancen zu gewinnen ist (nicht überraschend) der Golden-Globe-Gewinner: "The Power of The Dog"!

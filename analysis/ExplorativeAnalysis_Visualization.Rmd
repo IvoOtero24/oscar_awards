@@ -1,0 +1,252 @@
+---
+title: "The Oscars Award"
+subtitle: "Explorative Datenanalyse & Visualisierung"
+author: "Mathias Petak, Ivo Otero"
+date: "4 1 2022"
+output: 
+  pdf_document:
+      toc: yes
+      number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE,
+                      fig.align = "center")
+```
+
+# Aufgabenstellung
+
+Datenaufbereitung und Explorative Datenanalyse, speziell Visualisierung
+
+# Packages laden
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(ggmosaic)
+library(pander)
+```
+
+# Daten einlesen
+
+```{r}
+oscars_data <- read.csv(file = '../data/the_oscar_award.csv', header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
+```
+
+# Daten aufbereiten
+
+```{r}
+oscars_tbl <- as_tibble(oscars_data)
+oscars_tbl$winner <- as.factor(oscars_tbl$winner)
+oscars_tbl$category <- as.factor(oscars_tbl$category)
+head(oscars_tbl)
+```
+
+
+# Daten untersuchen
+
+```{r}
+summary(oscars_tbl)
+```
+
+Der Datensatz besteht aus 7 Variablen (3 metrischen und 4 kategorialen) und 10395 Beobachtungen. Eine Beobachtung beschreibt jeweils eine Nominierung und das ihr zugehörige Erscheinungsjahr des Films (year_film), das Jahr der Zeremonie (year_ceremony), die nummerische Reihenfolge der Zeremonie (ceremony), die Kategorie des Preises (category), den Namen des Nominierten (name), den betreffenden Film (film) und ob die Nominierung letztendlich gewonnen hat (winner).
+
+## Fehlende Werte
+
+```{r}
+sum(is.na(oscars_tbl))
+oscars_tbl %>%
+  filter(is.na(film))
+```
+Es gibt 304 fehlende Werte, alle betreffen die Variable "film".
+
+The only column with missing items is the 'film' column.
+Let's explore the missing lines of this data to understand why,
+and in which categories this is happening
+
+## Häufigkeit der Nominierungen nach Jahren (year_film, year_ceremony)
+
+Es wird untersucht, ob year_ceremony nur auf Filme aus dem Vorjahr zurückgreift (year_film):
+
+```{r}
+matching_yrs <- 0
+
+for (row in 1:nrow(oscars_tbl)){
+  if (oscars_tbl$year_film[row]+1 == oscars_tbl$year_ceremony[row])
+    matching_yrs <- matching_yrs+1
+}
+
+matching_yrs # Filme aus dem Vorjahr 
+matching_yrs/nrow(oscars_tbl) # Filme aus dem Vorjahr / Alle Beobachtungen
+
+```
+
+Für alle 10395 Beobachtungen wurden Filme aus dem Vorjahr nominiert.
+
+### Anzahl der Nominierungen
+
+```{r}
+cnt_yrs <- count(oscars_tbl, year_ceremony) %>% arrange(desc(n))
+c_yrs_mean <- mean(cnt_yrs$n)
+cnt_yrs
+c_yrs_mean
+```
+Der Mittelwert der Nominierungen liegt in etwa bei 113.
+
+```{r}
+ggplot(oscars_tbl, aes(x = year_ceremony)) +
+  geom_histogram(color="black", fill="white", binwidth = 1) +
+  scale_x_continuous(breaks=c(1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020)) + 
+  labs(title="Anzahl der Nominierungen pro Jahr (n = 10395)",x="Jahr der Zeremonie", y = 
+         "Anzahl der Nominierungen") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  geom_hline(aes(yintercept=c_yrs_mean, color="red"),
+             linetype="dashed", show.legend = FALSE)
+```
+
+Es ist auffällig, dass es im Jahr 1934 keine Nominierung gab und daher vermutlich in diesem Jahr keine Oscar-Verleihung stattgefunden hat. Die Anzahl der Nominierungen erreichte im Jahr 1943 ihren Höchstwert (186 Nominierungen) und pendelte sich seit 1946 im Bereich zwischen 100 und 130 Nominierungen pro Jahr ein.
+
+## Kategorien
+
+```{r}
+biggest_categories <- oscars_tbl %>%
+  mutate(category = fct_lump(category, n = 10)) %>%
+  count(category, sort = TRUE)
+
+biggest_categories
+
+sum(biggest_categories$n[2:11])
+```
+
+6700 Nominierungen entfallen auf alle anderen Kategorien zusammengerechnet. 3695 Nominierungen entfallen auf die Top 10. 
+
+```{r}
+sum(biggest_categories$n[2:11])/nrow(oscars_tbl) # Prozentuelle Anzahl der Nomierungen von Top 10 Kategorien
+```
+
+Die Top 10 Kategorien machen in etwa 35,5% aller Nominierungen aus.
+
+```{r}
+top_categories_filtered <- filter(oscars_tbl, category %in% biggest_categories$category) 
+
+ggplot(top_categories_filtered, aes(y = fct_rev(fct_infreq(category)), fill = winner)) + 
+  geom_bar() + labs(title = "Top 10 Kategorien nach Nominierungen", x = "Anzahl der Nominierungen",
+                    y = "Kategorie") +
+  scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) + 
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))
+```
+
+Die meisten Nominierungen (mit über 400) gibt es in den Kategorien "Directing", "Film Editing", sowie "Actor in a supporting Role", "Actress in a supporting role". Danach folgen "Documentary (Short Subject)", "Documentary (Feature)", "Best Picture", "Cinematography", "Foreign Language Film" und "Art Direction".
+
+
+Die Anzahl der Siege ist bei allen Kategorien weit unter der Hälfte der Nominierungen. Die Kategorie "Best Picture" hat von allen genannten die wenigsten Auszeichnungen, jedoch die 7. meisten Nominierungen.
+
+```{r}
+ggplot(top_categories_filtered, aes(category, year_ceremony)) +
+  geom_boxplot(aes(colour = category, fill = after_scale(alpha(colour, 0.4)))) +
+  coord_flip() +
+  scale_y_continuous(breaks = c(1928,1950, 1975, 2000, 2020)) +
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5)) + labs(title = "Top 10 Kategorien zeitliche Verteilung", x = "Kategorie", y = "Jahr der Verleihung")
+  
+```
+
+Cinematography ist die einzige Kategorie die seit Beginn der Oscar-Verleihungen bis zur Gegenwart (2020) immer vergeben wurde. Die Nominierungen in dieser Kategorie haben sich seit ~ 1970 gehäuft. Directing als größte Kategorie ist seit 1929 bis heute vergeben worden und die Nominierungen sind während dieser Zeit in etwa gleichverteilt. Die beliebte Kategorie "Best Picture" gibt es erst in etwa seit 1960, während Oscars in der Kategorie Art Direction seit ~2005 nicht mehr vergeben werden. 
+
+
+## Nominierte
+
+```{r}
+most_freq_names <- count(oscars_tbl, name) %>% arrange(desc(n)) %>% top_n(10, n)
+
+most_freq_names 
+
+top_names_filtered <- filter(oscars_tbl, name %in% most_freq_names$name)
+
+ggplot(top_names_filtered, aes(y = fct_rev(fct_infreq(name)), fill = winner)) + 
+  geom_bar() + labs(title = "Personen, Organisationen oder Länder mit min. 22 Nominierungen", x = "Anzahl der Nominierungen",
+                    y = "Nominierte") +
+  scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) + 
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) 
+```
+Metro-Goldwyn-Mayer wurde mit rund 64 Mal am meisten nominiert. Die Verteilung zwischen Nominierung und Auszeichnung scheint nicht gleichmäßig verteilt - Walt Disney, Producer hat rund doppelt so viele Auszeichnungen wie Metro-Goldwyn-Meyer bei 5 Nominierungen weniger (59).
+
+### Nach Kategorie "DIRECTING"
+
+Sortiert nach der häufigsten Kategorie "Directing"
+
+```{r}
+top_directors_nom <- filter(oscars_tbl, category == "DIRECTING") %>% count(name) %>% arrange(desc(n)) %>% top_n(10, n)
+top_directors_nom
+
+top_directors_filtered <- filter(oscars_tbl, category == "DIRECTING") %>% 
+  filter(name %in% top_directors_nom$name)
+
+ggplot(top_directors_filtered, aes(y = fct_rev(fct_infreq(name)), fill = winner)) + 
+  geom_bar() + labs(title = "Regisseure mit min. 5 Nominierungen", x = "Anzahl der Nominierungen",
+                    y = "Nominierte") +
+  scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) + 
+  scale_x_continuous(breaks=c(0:12)) + 
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) 
+
+sum(top_directors_nom$n)/biggest_categories$n[2] # Top Regisseure prozentueller Anteil an Directing Nominierungen
+```
+
+17 Regisseure haben zumindest 5 Nominierungen. William Wyler hat mit 12 die meisten Nominierungen, John Ford jedoch mit 4 Auszeichnungen aus 5 Nominierungen die meisten Preise in der Kategorie.
+
+### Nach Kategorie Actor/Actress (beliebig)
+
+```{r}
+top_actors_n <- filter(oscars_tbl, grepl('ACTOR*|ACTRESS*', category)) %>% count(name) %>% arrange(desc(n)) %>% top_n(10, n)
+top_actors_n
+top_actors_n_filtered <- filter(oscars_tbl, grepl('ACTOR*|ACTRESS*', category)) %>% 
+  filter(name %in% top_actors_n$name)
+
+ggplot(top_actors_n_filtered, aes(y = fct_rev(fct_infreq(name)), fill = winner)) + 
+  geom_bar() + labs(title = "SchauspielerInnen mit min. 8 Nominierungen", x = "Anzahl der Nominierungen",
+                    y = "Nominierte") +
+  scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) + 
+  scale_x_continuous(breaks=c(0:21)) + 
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) 
+```
+Meryl Streep hat mit Abstand die meisten Nominierungen (21) aller SchauspielerInnnen, fast doppelt so viel wie Jack Nicholson und Katharine Hepburn (12) mit den zweitmeisten Nominierungen. Katharine Hepburn hat jedoch die meisten Preise in den Schauspiel-Kategorien (4) gewonnen.
+
+## Filme
+
+```{r}
+most_freq_films <- oscars_tbl %>% drop_na() %>%  count(film,year_film) %>% arrange(desc(n)) %>% top_n(5, n)
+most_freq_films
+
+top_films_filtered <- oscars_tbl %>% filter(film %in% most_freq_films$film) %>% filter(!(film == 'Titanic' & year_film == 1953)) # manuelles Filtern der beiden Titanic Filme aus 1953
+top_films_filtered
+
+ggplot(top_films_filtered, aes(y = fct_rev(fct_infreq(film)), fill = winner)) + 
+  geom_bar() + labs(title = "Filme mit min. 13 Nominierungen", x = "Anzahl der Nominierungen",
+                    y = "Nominierte") +
+  scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) + 
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) +
+  scale_x_continuous(breaks=c(0:14))
+```
+Die drei meist-nominierten Filme sind "All about Eve", "La la Land" und "Titanic" (alle 14 Nominierungen), wobei Titanic mit 11 Mal am meisten ausgezeichnet wurde.  
+
+## Auszeichnungen
+
+```{r}
+
+abs = table(oscars_tbl$winner)
+rel = prop.table(table(oscars_tbl$winner))
+
+tab = rbind(Absolut = abs, Anteile = round(rel, 2))
+
+pander(tab, justify = "right", caption = "Auszeichnungen von Nominierungen", ) # Gibt Tabellen in Markdown aus
+
+
+ggplot(oscars_tbl, aes(x = winner, y = ..prop.., group = 1, fill = factor(..x..))) +
+  geom_bar() +
+  scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) +
+  scale_x_discrete(labels = (c("Nein", "Ja"))) +
+  scale_y_continuous(limits = c(0,1)) +
+  labs(title = "Auszeichnungen bei Nominierung", x = "Auszeichnung",
+                    y = "Nomierungen (relativ)") + 
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))
+```
+Rund 23% (2357) aller Nominierungen werden mit einem Oscar ausgezeichnet.
