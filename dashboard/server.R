@@ -1,27 +1,28 @@
+# Libraries -----
 library(shiny)
 library(tidyverse)
 library(tidyr)
 library(shinydashboard)
 library(ggridges)
 library(waffle)
+# ------
 
 
+# Data preparation -----
 oscars_tbl <- read.csv(file = "../data/the_oscar_award.csv", header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
 oscars_merged <- read.csv(file = "../data/oscars_merged.csv", header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
 
 
-# Data preparation
 oscars_tbl <- as_tibble(oscars_tbl)
 oscars_tbl$winner <- as.factor(oscars_tbl$winner)
 oscars_tbl$category <- as.factor(oscars_tbl$category)
+
 biggest_categories <- oscars_tbl %>%
     mutate(category = fct_lump(category, n = 10)) %>%
     count(category, sort = TRUE)
 winners <- filter(oscars_tbl, winner == "True")
-# ---------------
+# --------
 
-
-# Define server logic required to draw a histogram
 shinyServer(function(input, output) {
 
     
@@ -42,24 +43,24 @@ shinyServer(function(input, output) {
         
         if (input$nomCategories == "Org. Name") {
             ggplot(top_names_filtered, aes(y = fct_rev(fct_infreq(sub(name ,pattern = "(\\w{15}).*",replacement = "\\1."))))) + 
-                geom_bar() + labs(title = "Organisationen oder Länder: Top 10 Nominierungen", x = "Anzahl der Nominierungen", y = "Nominierte") +
+                geom_bar(fill = "#56B4E9") + labs(title = "Organisationen oder Länder: Top 10 Nominierungen", x = "Anzahl der Nominierungen", y = "Nominierte") +
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))  
             
         } else if (input$nomCategories == "Regisseure") {
             ggplot(top_directors_filtered, aes(y = fct_rev(fct_infreq(name)))) + 
-                geom_bar() + labs(title = "Regisseure mit min. 5 Nominierungen", x = "Anzahl der Nominierungen",y = "Nominierte") +
+                geom_bar(fill = "#56B4E9") + labs(title = "Regisseure mit min. 5 Nominierungen", x = "Anzahl der Nominierungen",y = "Nominierte") +
                 scale_x_continuous(breaks=c(0:12)) + 
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))
             
         } else if (input$nomCategories == "SchauspielerInnen") {
             ggplot(top_actors_n_filtered, aes(y = fct_rev(fct_infreq(name)))) + 
-                geom_bar() + labs(title = "SchauspielerInnen mit min. 8 Nominierungen", x = "Anzahl der Nominierungen", y = "Nominierte") +
+                geom_bar(fill = "#56B4E9") + labs(title = "SchauspielerInnen mit min. 8 Nominierungen", x = "Anzahl der Nominierungen", y = "Nominierte") +
                 scale_x_continuous(breaks=c(0:21)) + 
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) 
             
         } else {
             ggplot(top_films_filtered, aes(y = fct_rev(fct_infreq(film)))) + 
-                geom_bar() + labs(title = "Filme mit min. 13 Nominierungen", x = "Anzahl der Nominierungen", y = "Nominierte") +
+                geom_bar(fill = "#56B4E9") + labs(title = "Filme mit min. 13 Nominierungen", x = "Anzahl der Nominierungen", y = "Nominierte") +
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) +
                 scale_x_continuous(breaks=c(0:14))
         }
@@ -95,24 +96,24 @@ shinyServer(function(input, output) {
         
         if (input$winningCat == "Org. Name") {
             ggplot(top_names_filtered, aes(y = fct_rev(fct_infreq(sub(name ,pattern = "(\\w{8}).*",replacement = "\\1."))))) + 
-                geom_bar() + labs(title = "Personen, Organisationen oder Länder mit min. 22 Nominierungen", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
-                theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))  
+                geom_bar(fill = "#E69F00") + labs(title = "Personen, Organisationen oder Länder mit min. 22 Nominierungen", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
+                theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) 
             
         } else if (input$winningCat == "Regisseure") {
             ggplot(top_directors_filtered, aes(y = fct_rev(fct_infreq(name)))) + 
-                geom_bar() + labs(title = "Top Regisseure (min. 2 Auszeichnungen)", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
+                geom_bar(fill = "#E69F00") + labs(title = "Top Regisseure (min. 2 Auszeichnungen)", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
                 scale_x_continuous(breaks=c(0:12)) + 
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))
             
         } else if (input$winningCat == "SchauspielerInnen") {
             ggplot(top_actors_n_filtered, aes(y = fct_rev(fct_infreq(name)))) + 
-                geom_bar() + labs(title = "Top SchauspielerInnen (min. 3 Auszeichnungen)", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
+                geom_bar(fill = "#E69F00") + labs(title = "Top SchauspielerInnen (min. 3 Auszeichnungen)", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
                 scale_x_continuous(breaks=c(0:21)) + 
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) 
             
         } else {
             ggplot(top_films_filtered, aes(y = fct_rev(fct_infreq(film)))) + 
-                geom_bar() + labs(title = "Top Filme (min. 9 Auszeichnungen)", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
+                geom_bar(fill = "#E69F00") + labs(title = "Top Filme (min. 9 Auszeichnungen)", x = "Anzahl der Auszeichnungen", y = "Auszeichnete") +
                 theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5)) +
                 scale_x_continuous(breaks=c(0:14))
         }
@@ -120,7 +121,7 @@ shinyServer(function(input, output) {
     
     output$winVsNom <- renderPlot({
         ggplot(oscars_tbl, aes(x = winner, y = ..prop.., group = 1, fill = factor(..x..))) +
-            geom_bar() +
+            geom_bar(fill = c("#56B4E9", "#E69F00")) +
             scale_fill_discrete(guide = guide_legend(reverse=TRUE), name = "Auszeichnung", labels = c("Nein", "Ja")) +
             scale_x_discrete(labels = (c("Nein", "Ja"))) +
             scale_y_continuous(limits = c(0,1)) +
@@ -128,8 +129,7 @@ shinyServer(function(input, output) {
                  y = "Nomierungen (relativ)") + 
             theme(plot.title = element_text(hjust = 0.5), legend.title = element_text(hjust = 0.5))
     })
-    # -----------------------------------------------------------------------
-    
+    # ----
     
     # Prediction-Models-Tab ------------------------------------------------
     # Table
@@ -142,11 +142,7 @@ shinyServer(function(input, output) {
                 scrollY = TRUE)
         )
     })
-    
-    
-    
-    # Result Visualization
-    
+
     # Table
     headers <- c("", "Accuracy", "Recall", "Precision", "F1")
     nbData <- c("Naive-Bayes", 0.7857, 0.9231, 0.8276, 0.8727)
@@ -157,19 +153,29 @@ shinyServer(function(input, output) {
     output$resultsTable <- renderTable({predData}, rownames = FALSE, colnames = FALSE, align = "c", spacing = "l", width = "100%")
     
     # Graph
-    output$resultsGraph <- renderPlot({
-        
-    })
-    
-    # ----------------------------------------------------------------------- 
-    
+    output$resultsGraph <- renderImage({
+        filename <- file.path('../data/images/bwplot.png')
+        list(src = filename, width = "100%", height = "100%")
+    }, deleteFile = FALSE)
+    # -----
     
     # 2022-Prediction-Tab ------------ --------------------------------------
-    # ----------------------------------------------------------------------- 
-    output$distPl <- renderPlot({
-        
-        
-    })
+    output$predictionImage <- renderImage({
+        filename <- file.path('../data/images/Oscars_Otero_Petak_Poster.png')
+        list(src = filename, width = "500px", height = "auto")
+    }, deleteFile = FALSE)
+    # -----
     
-
+    
+    # Full Table Tab
+    output$fullTable <- DT::renderDataTable({
+        DT::datatable(
+            oscars_tbl |> pivot_wider(everything()), options=list(
+                pageLength = 20,
+                lengthMenu = c(20, 50, 100),
+                scrollX = TRUE,
+                scrollY = TRUE)
+        )
+    })
+    # -----
 })

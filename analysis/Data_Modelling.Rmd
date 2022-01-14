@@ -251,7 +251,7 @@ summary(res)
 ## Graphische Darstellung
 
 ```{r echo=FALSE, message=FALSE, error=FALSE}
-png(file="../data/output/bwplot.png",
+png(file="../data/images/bwplot.png",
           width=600, height=350)
 bwplot(res)
 dev.off()
