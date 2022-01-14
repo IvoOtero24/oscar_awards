@@ -171,6 +171,9 @@ merged[242, "genre"] = "Crime"
 
 sum(is.na(merged))
 
+# export "merged" für Dashboard visualisierung
+write.csv(merged,"../data/oscars_merged.csv", row.names = FALSE)
+
 ```
 
 \newpage
@@ -246,6 +249,14 @@ summary(res)
 ```
 
 ## Graphische Darstellung
+
+```{r echo=FALSE, message=FALSE, error=FALSE}
+png(file="../data/output/bwplot.png",
+          width=600, height=350)
+bwplot(res)
+dev.off()
+```
+
 
 ```{r}
 bwplot(res)

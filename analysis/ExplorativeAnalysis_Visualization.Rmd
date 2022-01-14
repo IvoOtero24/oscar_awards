@@ -60,9 +60,6 @@ oscars_tbl %>%
 ```
 Es gibt 304 fehlende Werte, alle betreffen die Variable "film".
 
-The only column with missing items is the 'film' column.
-Let's explore the missing lines of this data to understand why,
-and in which categories this is happening
 
 ## Häufigkeit der Nominierungen nach Jahren (year_film, year_ceremony)
 
