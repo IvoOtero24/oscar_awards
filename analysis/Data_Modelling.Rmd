@@ -32,22 +32,24 @@ library(sjmisc)
  
 # Einleitung und Aufgabenstellung
 
-In diesem Teil des Projektes werden verschiedenen Klassifizierungsmethoden beim miteinander vergleicht Anhand der Daten aus unserem *Oscar-Dataset*, die für den *ExplorativeAnalysis* Teil bereits verwendet wurde (mit einige anpassungen, die später erähnt werden).
+In diesem Teil des Projektes werden verschiedenen Klassifizierungsmethoden beim miteinander vergleicht anhand der Daten aus unserem *Oscar-Dataset*, die für den *ExplorativeAnalysis* Teil bereits verwendet wurde (mit einige Anpassungen, die später erwähnt werden).
 
 Wir benutzen die **Klassifikation**, um eine kategoriale Variable vorhersagen zu können.
-In diesem Projekten fokussieren wir uns auf 3 unterschiedliche Methoden, die oft in Data Science Anwendungen zu diesem Zweck verwendet werden: *Random Forest*, *Naive Bayes Classifiers* und *Neural Networks*.
+In diesem Projekt fokussieren wir uns auf 3 unterschiedliche Methoden, die oft in Data Science Anwendungen zu diesem Zweck verwendet werden: *Random Forest*, *Naive Bayes Classifiers* und *Neural Networks*.
 
-Die 3 erwähnte Methoden werden miteinander verglichen, und die Methode mit dem besten Ergebnis beim "Performance Assesment" wird anschließend für die Vorhersage angewendet.
+Die 3 erwähnte Methoden werden miteinander verglichen, und die Methode mit dem besten Ergebnis beim "Performance Assessment" wird anschließend für die Vorhersage angewendet.
 
 ## Was wird vorhergesagt?
 
-Anhand der ausgewählten Methode wird vorhergesagt, ob ein Film nach mehrere ihre Features das Oscar-Preis für "Best Picture" (beste Film) gewonnen hat oder nicht.
-**BONUS:** Anschließend wird auch anhand der Ratings und Golden Globe 2022 ergebnisse versucht, der gewinner des 2022 Best Picture Award zu vorhersagen (Ergebnis der Auszeichnung erfolgt aber erst in März ).
+Anhand der ausgewählten Methode wird vorhergesagt, ob ein Film nach 
+ihre Features das Oscar-Preis für "Best Picture" (beste Film) gewonnen hat oder nicht.
+**BONUS:** Anschließend wird auch anhand der Ratings und Golden Globe 2022 Ergebnisse versucht, der Gewinner des 2022 Best Picture Award vorherzusagen (Ergebnis der Auszeichnung erfolgt aber erst im März).
+
 
 # Daten einlesen und aufbereiten
 
-Die erste Aufagbe ist die Daten einlesen und für die weitere Verarbeitung aufzubereiten.
-In diesem Beispiel werden als erstes die Attributen `Winner` (ob ein Film gewonnen hat oder nicht) und `Category` als `factor` umgestellt.
+Die erste Aufgabe ist die Daten einlesen und für die weitere Verarbeitung aufzubereiten.
+In diesem Beispiel werden als Erstes die Attributen `Winner` (ob ein Film gewonnen hat oder nicht) und `Category` als `factor` umgestellt.
 
 ```{r}
 oscars_data <- read.csv(file = '../data/the_oscar_award.csv', header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
@@ -59,8 +61,8 @@ head(oscars_tbl)
 
 ## Cleanup
 
-Da bei dieser Arbeit der Fokus bei der "Best Picture" Kategorie liegt, werden wir für die Vorhersagemodellen alle anderen Kategorien aus unserem Datensatz rausnehmen.
-Da aber das Best Picture Award in der Vergangenheit anders genannt wurde, haben wir diese Kategorien recherchiert und in einer einzelne Kategorie `BEST PICTURE` zusammengesetz, um später besser damit arbeiten zu können.
+Da bei dieser Arbeit der Fokus bei der "Best Picture" Kategorie liegt, werden wir für die Vorhersagemodelle alle anderen Kategorien aus unserem Datensatz herausnehmen.
+Da aber das Best Picture Award in der Vergangenheit anders genannt wurde, haben wir diese Kategorien recherchiert und in eine einzelne Kategorie `BEST PICTURE` zusammengesetzt, um später besser damit arbeiten zu können.
 
 ```{r}
 for (row in 1:nrow(oscars_tbl)) {
@@ -82,8 +84,8 @@ bestMovies = subset(oscars_tbl, category == "BEST PICTURE")
 
 ### Externe Daten einlesen
 
-Um die gewinner vorhersagen zu können müssen wir unseren Dataset mit den Oscar-Nominierte Filme erweitern und neue Variablen hinzufügen, die möglicherweise ein Einfluss auf die Zielvariable "winner" haben.
-Wir haben uns in diesem Fall für den "oscardata_bestpicture" (*Kaggle: Data on Oscar nominated films between 1960 and 2021*) Datensatz geeignit, der Daten aus IMDB (Film und Rating-Website) beinhaltet.
+Um die Gewinner vorhersagen zu können, müssen wir unseren Dataset mit den Oscar-nominierten Filmen erweitern und neue Variablen hinzufügen, die möglicherweise ein Einfluss auf die Zielvariable "winner" haben.
+Wir haben uns in diesem Fall für den "oscardata_bestpicture" (*Kaggle: Data on Oscar nominated films between 1960 and 2021*) Datensatz geeinigt, der Daten aus IMDB (Film und Rating-Website) beinhaltet.
 
 ```{r}
 movie_data_imdb <- read.csv(file = '../data/oscardata_bestpicture.csv', header = TRUE, sep = ",", encoding = "UTF-8", na.strings = "")
@@ -94,14 +96,14 @@ head(movie_data_imdb)
 
 ### Datensätze zusammenfügen
 
-Für das zusammenführen der beiden tabellen wurde die `merge()` Methode genommen, und nur die relevantesten Spalten wurden betrachtet (neu dazugekommen sind "Rating_IMDB", "Win_GolenGlobe_bestdrama", u. A).
+Für das Zusammenführen der beiden Tabellen wurde die `merge()` Methode genommen, und nur die relevantesten Spalten wurden betrachtet (neu dazugekommen sind "Rating_IMDB", "Win_GolenGlobe_bestdrama", u. A).
 
 ```{r}
 merged = merge(bestMovies, movie_data_imdb, by = "film") |> 
           subset(select = c(film, ceremony, name, winner, Year, Rating_IMDB, Oscarstat_totalnoms, Nom_Oscar_bestdirector, Genre_action, Genre_biography, Genre_crime, Genre_comedy, Genre_drama, Genre_horror, Genre_fantasy, Genre_sci.fi, Genre_mystery, Genre_music, Genre_romance, Genre_history, Genre_war, Genre_thriller, Genre_adventure, Genre_filmnoir, Genre_family, Genre_sport, Genre_western, Rating_rtcritic, Nom_GoldenGlobe_bestdrama, Win_GoldenGlobe_bestdrama))
 ```
 
-Weiters haben wir aus Vereinfachungsgründen die "genre" Spalten (die Auskuft geben, ob ein Film einer bestimmten Genre gehört) zussamengeführ, um nur eine Spalte mit jeweiligen Genre des Filmes zu haben.
+Weiters haben wir aus Vereinfachungsgründen die "genre" Spalten (die Auskuft geben, ob ein Film einem bestimmten Genre gehört) zusammengeführt, um nur eine Spalte mit jeweiligem Genre des Filmes zu haben.
 
 ```{r}
 merged$genre = as.character(NA)
@@ -176,7 +178,6 @@ write.csv(merged,"../data/oscars_merged.csv", row.names = FALSE)
 
 ```
 
-\newpage
 
 # Modellierung
 
@@ -197,8 +198,8 @@ nrow(test)
 
 ## Data Training und Tuning
 
-Für die Vorhersage haben wir uns entschieden, nicht alle Attributen zu nehmen, da es zu ein schlechteren Ergebniss fürht (Kappa bei ca. 0).
-Die beste Attributenkombination hat sich ergeben bei der Auswahl von `Oscarstat_totalnoms` (Anzahl an Oscar-nominierungen für das jeweilige Film) + `Rating_rtcritic` (Kritikers Rating) + `Win_GoldenGlobe_bestdrama` (boolean, ob der Film die GoldenGlobes gewonnen hat)
+Für die Vorhersage haben wir uns entschieden, nicht alle Attributen zu nehmen, da es zu einem schlechteren Ergebnis führt (Kappa bei ca. 0).
+Die beste Attribut-Kombination hat sich ergeben bei der Auswahl von `Oscarstat_totalnoms` (Anzahl an Oscar-Nominierungen für den jeweiligen Film) + `Rating_rtcritic` (Kritikers Rating) + `Win_GoldenGlobe_bestdrama` (boolean, ob der Film die Golden Globes gewonnen hat)
 
 ### RandomForest
 
@@ -239,7 +240,7 @@ model_nn
 
 # Performance Assesment und Vergleich
 
-Nachdem wir alle Modelle trainiert haben, werden diese miteinander vergliechen, um das beste Modell für die Vorersage der Daten herauszufinden.
+Nachdem wir alle Modelle trainiert haben, werden diese miteinander verglichen, um das beste Modell für die Vorhersage der Daten herauszufinden.
 
 ## Vergleich mit PostResamle
 
@@ -262,10 +263,10 @@ dev.off()
 bwplot(res)
 ```
 
-Auf dem ersten Blick kann man sehr gut erkennen, dass der `RandomForest` Modell besser ausschneidet als die zwei weitere Alternativen.
-Alle Modelle präsentieren eine ähnliche `Accuracy`, aber es gibt ein großes Unterschied beim Vergleich der `Kappa` Kennzahl für jedes Modell.
+Auf den ersten Blick kann man gut erkennen, dass der `RandomForest` Modell besser ausschneidet als die zwei weitere Alternativen.
+Alle Modelle präsentieren eine ähnliche `Accuracy`, aber es gibt ein großer Unterschied beim Vergleich der `Kappa` Kennzahl für jedes Modell.
 
-Da diese Kennzahlen aber nicht die volle Geschichte erklären, werden im Folgenden Absatz die `Confusion Matrices` der einzelnen Modellen miteinander verglichen.
+Da diese Kennzahlen aber nicht die volle Geschichte erklären, werden im folgenden Absatz die `Confusion Matrices` den einzelnen Modellen miteinander verglichen.
 
 ## ConfusionMatrix für jedes Modell
 
@@ -303,15 +304,18 @@ confusionMatrix(tab, mode = "prec_recall")
 
 : Vergleich der "Confusion Matrices"
 
-Aus der obigen Tabelle geht hervor, dass das *Naive-Bayes* und das *NeuralNetwork* Modell ähnliche, gute aber nicht optimale Ergebnisse für die 4 beschriebenen Metriken erzielen.
+Aus der obigen Tabelle geht hervor, dass das *Naive-Bayes* und das *NeuralNetwork* Modell ähnliche, gute, aber nicht optimale Ergebnisse für die 4 beschriebenen Metriken erzielen.
 Das einzige Modell, das hiervon abweicht, ist das *RandomForest* Modell, der in allen Kategorien eine sehr gute Leistung aufweist.
 
 Das *RandomForest* Modell hat einen Vorsprung vor den anderen beiden Modellen, da es in allen 4 Metriken um einen kleinen Prozentsatz besser ist als seine Konkurrenten.
-Aus diesem Grund wäre es auch das Modell der Wahl für die Vorhersage des Attributs "winner" unserem Beispiel einer Oscar-Verleihung.
+Aus diesem Grund wäre dieses Modell die beste Wahl für die Vorhersage des Attributs "winner" beim Best Picture Award der Oscar-Verleihung.
+
+
+\newpage
 
 # Vorhersagen mit RandomForest
 
-In diesem Abschnitt werden die Vorhersagen anhand den Test-Daten durchgeführt, und ihr Ergebniss wird anschließend ausgegeben.
+In diesem Abschnitt werden die Vorhersagen anhand der Testdaten durchgeführt, und ihr Ergebnis wird anschließend ausgegeben.
 
 ## Vorhersage der Test-Daten
 
@@ -320,12 +324,12 @@ pred_rf = predict(model_rf, test)
 postResample(pred_rf, test$winner)
 ```
 
-Wir man erkennen kann, das Modell hat die Oscar-Gewinner mit einer 85,24% Genauigkeit vorhergesagt.
-Laut dem Kappa-Wert erkennen wir auch, das diese Vorhersage auch ein Mehrwert gegen einfaches Raten präsentiert.
+Wie man hier bemerkt, das Modell hat die Oscar-Gewinner mit einer 85,24% Genauigkeit vorhergesagt.
+Laut dem Kappa-Wert erkennen wir auch, dass diese Vorhersage auch ein Mehrwert gegen einfaches Raten präsentiert.
 
 ## Vorhersage der 2022 Oscars
 
-Für die Vorhersage der 2022 Oscars wird in diesem Fall die Nominierungen der "Golden Globes Award" genommen, da die ofizielle Oscar-Nominierungen für "Best Picture" noch nicht bekannt sind. 
+Für die Vorhersage der 2022 Oscars wird in diesem Fall die Nominierungen der "Golden Globes Award" genommen, da die offiziellen Oscar-Nominierungen für "Best Picture" noch nicht bekannt sind. 
 
 ```{r}
 film = c("The Power of The Dog", "Belfast", "CODA", "Dune", "King Richard")
@@ -350,4 +354,4 @@ pred_2022 = predict(model_rf, goldenglobes, type = "prob")
 pred_2022
 ```
 
-Aus den Ergebnissen geht hervor, dass keine der Filme, die für die Golden Gobes nominiert wurden, wahrscheinlich das Oscar für *Best Picture* gewinnen werden. Nichstdestotrotz, das Film mit den höheren Chancen zu gewinnen ist (nicht überraschend) der Golden-Globe-Gewinner: "The Power of The Dog"!
+Aus den Ergebnissen geht hervor, dass keine der Filme, die für die Golden Globes nominiert wurden, wahrscheinlich das Oscar für *Best Picture* gewinnen werden. Nichtsdestotrotz, das Film mit den höheren Chancen zu gewinnen ist (nicht überraschend) der Golden-Globe-Gewinner: "The Power of The Dog"!
