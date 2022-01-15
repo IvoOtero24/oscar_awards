@@ -25,7 +25,6 @@ oscardata_bestpicture.csv -> https://www.kaggle.com/matevaradi/oscar-prediction-
 ### webservice
 
 Die Anleitung zur Ausführung des Webservices befindet sich in der Datei "Webservice_Dokumentation-README-.pdf". 
-Zum Ausführen müssen folgende Packages installiert sein: "plumber", "httr", "rjson".
 
 ## Packages installieren
 
