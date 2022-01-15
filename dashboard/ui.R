@@ -9,10 +9,10 @@ ui <- dashboardPage(
     dashboardHeader(title = "Oscar Data Visualisierung und Vorhersage"),
     dashboardSidebar(
         sidebarMenu(
-            menuItem("Historische Daten", tabName = "histData", icon = icon("dashboard")),
-            menuItem("Vorhersagemodellen", tabName = "predModels", icon = icon("dashboard")),
-            menuItem("Oscar 2022: Vorhersage", tabName = "oscars2022", icon = icon("dashboard")),
-            menuItem("Oscar-Tabelle", tabName = "fullTable", icon = icon("dashboard"))
+            menuItem("Historische Daten", tabName = "histData", icon = icon("history")),
+            menuItem("Vorhersagemodellen", tabName = "predModels", icon = icon("project-diagram")),
+            menuItem("Oscar 2022: Vorhersage", tabName = "oscars2022", icon = icon("star")),
+            menuItem("Oscar-Tabelle", tabName = "fullTable", icon = icon("table"))
         )
     ),
     dashboardBody(
