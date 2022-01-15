@@ -17,8 +17,10 @@ Im Ordner *dashboard* befinden sich die Dateien "server.R" und "ui.R" der Shiny 
 ### data
 
 Im Ordner *data* befindet sich der Ausgangsdatensatz "the_oscar_award.csv" und der Datensatz "oscardata_bestpicture.csv", der für die Modellierung benötigt ist. Aus den beiden Datein wurde die Datei "oscars_merged.csv" erstellt. Im Unterordner *images* befinden sich außerdem noch Bilder, welche für die Visualisierung nötig sind. 
-Quellen: the_oscar_award.csv -> https://www.kaggle.com/unanimad/the-oscar-award
-         oscardata_bestpicture.csv -> https://www.kaggle.com/matevaradi/oscar-prediction-dataset
+
+Quellen: 
+the_oscar_award.csv -> https://www.kaggle.com/unanimad/the-oscar-award
+oscardata_bestpicture.csv -> https://www.kaggle.com/matevaradi/oscar-prediction-dataset
 
 ### webservice
 
@@ -31,5 +33,5 @@ Zum Ausführen der Files müssen folgende R Packages installiert sein: "tidyvers
 
 ## Bonus Features
 
-- *Interaktion* im Shiny Dashboard
+- **Interaktion** im Shiny Dashboard
 - Vorhersage für Oscars 2022 
