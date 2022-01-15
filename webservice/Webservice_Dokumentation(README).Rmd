@@ -1,0 +1,49 @@
+---
+title: "Webservice Dokumentation"
+author: "Mathias Petak, Ivo Otero"
+date: "4 1 2022"
+output: 
+  pdf_document:
+      toc: yes
+      number_sections: true
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Beschreibung
+
+Es wird ein (lokaler) RESTful web service für das Deployment des besten Vorhersagemodells für den Oscars-Datensatz erzeugt.
+
+## Datei "model.R"
+
+Ein Skript, das ein Random-Forrest Modell erstellt zur Vorhersage der Eintrittswahrscheinlichkeit eines Oscar-Gewinns eines gegebenen Datensatzes anhand der Parameter "Anzahl der Oscarnominerungen", "Kritikerbewertung" und "Golden-Globe Sieg". Das Modell wurde auf dem Oscars-Datensatz (merged) trainiert. 
+
+Das erstellte Modell wird in der Datei *model.rda* gespeichert.
+
+## Datei "server.R"
+
+Definiert Services als anonyme R-Funktionen. Lädt die gespeicherte *model.rda* und dekodiert den Testdatensatz. Per Post-Reqeust wird der 'predict'-Befehl des Random Forest Modells mit den Testdaten ausgeführt. 
+
+## Datei "server_start.R"
+
+Datei zum Starten des Servers. Das Plumber-Package wird geladen und der Service auf dem Endpunkt http://127.0.0.1:8080/oscars-rf ausgeführt.
+
+##  Datei "client_test.R" 
+
+Der Testdatensatz wird als JSON enkodiert und an den Server Endpunkt per POST-Methode gesendet. Der Testdatensatz sind die diesjährigen (2022) Golden Globe Award Nominierungen.
+
+# Anleitung zum Ausführen in RStudio
+
+- Überprüfen ob alle Dateien in einem Verzeichnis sind.
+- Das "working-directory" (für alle Sessions) auf diesen Ordner festlegen
+- RStudio öffnen, eine neue Session starten und die Datei *server_start.R* ausführen
+- In einer zweiten Session die Datei *client_test.R* ausführen
+
+# Ergebnis
+
+Als Ergebnis sollten in der Konsole zwei Vektoren erscheinen. Der Erste ist die Wahrscheinlichkeit keines Oscargewinns für die jeweilige Nominierungen und der zweite Vektor ist analog die Eintrittswahrscheinlichkeit für den Gewinn des Oscar Awards anhand unseres Random-Forrest Modells. 
